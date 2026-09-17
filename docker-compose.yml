@@ -1,0 +1,27 @@
+# Local PostgreSQL for development and tests.
+#
+# The test suite connects to this same server but creates and drops its own
+# disposable database per session (see backend/tests/conftest.py), so tests
+# never touch development data.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kanban-postgres
+    environment:
+      POSTGRES_USER: kanban
+      POSTGRES_PASSWORD: kanban
+      POSTGRES_DB: kanban
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # Tests and migrations fail confusingly if they connect before Postgres is
+      # accepting connections; this lets `docker compose up --wait` block until ready.
+      test: ["CMD-SHELL", "pg_isready -U kanban -d kanban"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres_data:
