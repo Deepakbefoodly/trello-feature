@@ -1,5 +1,6 @@
 """Application settings, loaded once from the environment."""
 
+import re
 from functools import lru_cache
 
 from pydantic import field_validator
@@ -15,6 +16,26 @@ class Settings(BaseSettings):
     # lifetime of a session.
     access_token_ttl_minutes: int = 60 * 24
     cors_origins: str = "http://localhost:5173"
+    # PostgreSQL schema holding this application's tables. "public" locally; set
+    # to a dedicated name when sharing an instance with another application, so
+    # both can own a `users` table without colliding.
+    db_schema: str = "public"
+
+    @field_validator("db_schema")
+    @classmethod
+    def _reject_unsafe_schema_name(cls, value: str) -> str:
+        """Constrain the name to a plain identifier.
+
+        It is interpolated into DDL and into a libpq connection option, neither
+        of which accepts bound parameters, so validating it here is what keeps
+        it from being an injection point.
+        """
+        if not re.fullmatch(r"[a-z_][a-z0-9_]*", value):
+            raise ValueError(
+                "db_schema must start with a lowercase letter or underscore and "
+                "contain only lowercase letters, digits and underscores"
+            )
+        return value
 
     @field_validator("database_url")
     @classmethod

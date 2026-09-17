@@ -60,6 +60,7 @@ cp .env.example .env
 | `DATABASE_URL` | `postgresql+psycopg://kanban:kanban@localhost:5433/kanban` |
 | `JWT_SECRET` | HS256 signing key. Generate with `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
 | `CORS_ORIGINS` | Comma-separated allowed origins for the browser client |
+| `DB_SCHEMA` | Schema holding this app's tables. `public` locally; only needed when sharing an instance |
 
 `frontend/.env` — see `frontend/.env.example`:
 
@@ -119,7 +120,7 @@ cd frontend && npm test
 
 | Suite | Count | Covers |
 |---|---|---|
-| Backend | 80 | Ordering (including a `hypothesis` property test), ownership across all 12 board-scoped endpoints, auth, validation |
+| Backend | 99 | Ordering (including a `hypothesis` property test), ownership across all 12 board-scoped endpoints, auth, validation, database-URL rewriting, schema isolation |
 | Frontend | 24 | The optimistic reordering functions, rollback on a rejected move, route guards |
 
 The backend suite takes around 90 seconds, almost all of it bcrypt hashing at its
@@ -133,19 +134,55 @@ Linting: `ruff check .` and `ruff format --check .` in `backend/`, `npx oxlint` 
 
 ## Deploying
 
-The API and its database run on **Render**, declared by `render.yaml` at the repo root. The client
-runs on **Vercel**. Both deploy from `main`.
+The API runs on **Render**, declared by `render.yaml` at the repo root, against an existing
+PostgreSQL instance. The client runs on **Vercel**. Both deploy from `main`.
 
-### 1. Render — API + PostgreSQL
+### 1. Render — the API
 
-Dashboard → **New → Blueprint** → pick this repository. Render reads `render.yaml` and creates a
-free PostgreSQL instance and a web service, wiring the database URL into the service and generating
-`JWT_SECRET` itself — no credentials are pasted anywhere or committed.
+Dashboard → **New → Blueprint** → pick this repository. Render reads `render.yaml` and creates the
+web service, generating `JWT_SECRET` itself.
+
+`render.yaml` deliberately declares **no database** — this deployment reuses an existing PostgreSQL
+instance (see *Sharing a database* below). One value must be set by hand:
+
+- **`DATABASE_URL`** — marked `sync: false`, so Render prompts for it. Paste your existing
+  database's **Internal** Database URL. It is not in the file because it carries credentials and
+  the repo is public.
 
 The build command installs the package and runs `alembic upgrade head`, so the schema is created on
 the first deploy and kept current on every later one.
 
 Copy the assigned API URL when it finishes, e.g. `https://kanban-api-xxxx.onrender.com`.
+
+### Sharing a database with another application
+
+Render's free tier allows one free PostgreSQL instance per account, so this app shares an existing
+one rather than creating its own. Sharing an instance naively would be unsafe: the migration creates
+`users`, `boards`, `lists`, `cards` and `alembic_version`, and `users` in particular is a name most
+applications already use. Two apps sharing `public` would collide on it, and two Alembic histories
+sharing one `alembic_version` row would each try to migrate away from the other's revision.
+
+So every table this app owns lives in its **own schema**, set by `DB_SCHEMA` (default `public`,
+`kanban` in `render.yaml`):
+
+- `app/db.py` pins every connection's `search_path` to that schema, so unqualified table names can
+  only ever resolve inside it.
+- `alembic/env.py` creates the schema if absent — PostgreSQL accepts a `search_path` naming a schema
+  that does not exist and silently resolves to nothing, so it cannot be assumed — and `alembic_version`
+  is created unqualified, landing in the same schema. Each application keeps a separate history.
+- The schema name is validated as a plain identifier in `Settings`, because it reaches DDL and a
+  libpq connection option, neither of which accepts a bound parameter.
+
+**Requirements when sharing:** the web service must be in the **same region** as the database, since
+Render's internal network is per-region and the internal hostname will not resolve otherwise.
+
+This was verified against a database whose `public` schema already contained all five conflicting
+table names: the migrations created a parallel set under `kanban`, the app read and wrote only
+there, and the existing rows in `public` were untouched. `backend/tests/test_schema_isolation.py`
+covers the mechanism.
+
+To go back to a dedicated database, drop `DB_SCHEMA` (it defaults to `public`) and add a
+`databases:` block to `render.yaml` with `fromDatabase:` wiring `DATABASE_URL`.
 
 ### 2. Vercel — the client
 
@@ -168,13 +205,14 @@ exactly the URL you would paste to show someone a board.
 
 ### Production environment variables
 
-Set by `render.yaml`, not by hand:
+Set by `render.yaml` unless noted:
 
 | Variable | Source |
 |---|---|
-| `DATABASE_URL` | Injected from the Render database |
+| `DATABASE_URL` | Set by hand in the dashboard (`sync: false`) - see step 1 |
 | `JWT_SECRET` | Generated by Render on first deploy |
 | `CORS_ORIGINS` | `*` — see below |
+| `DB_SCHEMA` | `kanban` — see Sharing a database |
 | `PYTHON_VERSION` | `3.13.7` |
 
 Render supplies a `postgresql://` URL, which SQLAlchemy would resolve to psycopg2 — a driver this

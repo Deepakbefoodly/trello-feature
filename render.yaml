@@ -1,25 +1,28 @@
-# Render Blueprint — the API and its PostgreSQL database.
+# Render Blueprint — the API only.
 #
-# The React client is NOT here; it deploys separately to Vercel (see README).
+# No `databases:` block: this deployment reuses an EXISTING Render PostgreSQL
+# instance (wallet-db) rather than creating its own, because the free tier
+# allows a single free database per account.
+#
+# `fromDatabase:` cannot be used for that — it only resolves databases declared
+# in this same Blueprint — so DATABASE_URL is marked `sync: false` and pasted
+# once in the dashboard. See the "Sharing a database" section of README.md.
+#
+# The React client is NOT here; it deploys separately to Vercel.
 #
 # Apply with: Render dashboard -> New -> Blueprint -> pick this repository.
-
-databases:
-  - name: kanban-db
-    databaseName: kanban
-    user: kanban
-    plan: free
-    # Pinned to the same region as the web service so they can talk over
-    # Render's internal network. Split across regions, the internal connection
-    # string the service is given would not resolve.
-    region: oregon
 
 services:
   - type: web
     name: kanban-api
     runtime: python
     plan: free
+
+    # MUST match the region wallet-db is in. Render's internal network is
+    # per-region, so a service in another region cannot resolve the internal
+    # database hostname at all.
     region: oregon
+
     rootDir: backend
 
     # Migrations run here rather than in a pre-deploy hook, which is a paid
@@ -41,13 +44,18 @@ services:
       - key: PYTHON_VERSION
         value: "3.13.7"
 
-      # Injected from the database above, so no credentials are ever pasted or
-      # committed. Render supplies a `postgresql://` URL; Settings rewrites the
-      # scheme to `postgresql+psycopg://` (see app/config.py).
+      # Set once in the Render dashboard: paste wallet-db's *Internal* Database
+      # URL. Left out of this file deliberately — it carries credentials, and
+      # this file is public.
       - key: DATABASE_URL
-        fromDatabase:
-          name: kanban-db
-          property: connectionString
+        sync: false
+
+      # Every table this application owns lives in its own schema, so it can
+      # share wallet-db without colliding: both applications can have a `users`
+      # table, and each keeps a separate alembic_version. The schema is created
+      # by alembic/env.py on first deploy.
+      - key: DB_SCHEMA
+        value: kanban
 
       # Render generates a strong value once and stores it. Never in git.
       - key: JWT_SECRET
