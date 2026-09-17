@@ -1,0 +1,62 @@
+# Render Blueprint — the API and its PostgreSQL database.
+#
+# The React client is NOT here; it deploys separately to Vercel (see README).
+#
+# Apply with: Render dashboard -> New -> Blueprint -> pick this repository.
+
+databases:
+  - name: kanban-db
+    databaseName: kanban
+    user: kanban
+    plan: free
+    # Pinned to the same region as the web service so they can talk over
+    # Render's internal network. Split across regions, the internal connection
+    # string the service is given would not resolve.
+    region: oregon
+
+services:
+  - type: web
+    name: kanban-api
+    runtime: python
+    plan: free
+    region: oregon
+    rootDir: backend
+
+    # Migrations run here rather than in a pre-deploy hook, which is a paid
+    # instance feature. The trade-off: this runs against the live database while
+    # the previous version is still serving. Fine for one instance and additive
+    # migrations; move to preDeployCommand when the instance is upgraded.
+    #
+    # `pip install .` and not `-e ".[dev]"`: production has no use for pytest,
+    # hypothesis or ruff, and an editable install buys nothing here.
+    buildCommand: pip install . && alembic upgrade head
+
+    # Render assigns $PORT and routes to it. Binding 0.0.0.0 rather than
+    # loopback is what lets the platform reach the listener at all.
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
+    healthCheckPath: /docs
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13.7"
+
+      # Injected from the database above, so no credentials are ever pasted or
+      # committed. Render supplies a `postgresql://` URL; Settings rewrites the
+      # scheme to `postgresql+psycopg://` (see app/config.py).
+      - key: DATABASE_URL
+        fromDatabase:
+          name: kanban-db
+          property: connectionString
+
+      # Render generates a strong value once and stores it. Never in git.
+      - key: JWT_SECRET
+        generateValue: true
+
+      # Wildcard: the Vercel frontend is on a different origin, and preview
+      # deployments each get their own URL. Safe here only because auth is a
+      # Bearer token in a header, not a cookie, so a browser never attaches it
+      # automatically. Tighten to an explicit origin list if auth ever moves to
+      # cookies or allow_credentials is enabled.
+      - key: CORS_ORIGINS
+        value: "*"

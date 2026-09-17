@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,6 +15,25 @@ class Settings(BaseSettings):
     # lifetime of a session.
     access_token_ttl_minutes: int = 60 * 24
     cors_origins: str = "http://localhost:5173"
+
+    @field_validator("database_url")
+    @classmethod
+    def _force_psycopg_driver(cls, value: str) -> str:
+        """Rewrite the scheme so a hosting platform's URL works untouched.
+
+        Render and similar platforms supply `postgresql://...` or the legacy
+        `postgres://...`. SQLAlchemy resolves the former to psycopg2, which this
+        project does not install, and the latter is not a registered dialect at
+        all — so both fail when the first connection is opened rather than at
+        startup.
+
+        Only the scheme is replaced, so a password containing '@' or '/' is left
+        intact. Anything that is not a Postgres URL passes through unchanged.
+        """
+        for scheme in ("postgres://", "postgresql://"):
+            if value.startswith(scheme):
+                return "postgresql+psycopg://" + value[len(scheme) :]
+        return value
 
     @property
     def cors_origin_list(self) -> list[str]:
