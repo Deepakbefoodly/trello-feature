@@ -12,7 +12,10 @@ services:
       POSTGRES_PASSWORD: kanban
       POSTGRES_DB: kanban
     ports:
-      - "5432:5432"
+      # Host port 5433, not 5432: a native PostgreSQL install commonly already
+      # owns 5432, and the collision surfaces as a confusing auth failure
+      # against the wrong server. 5433 keeps this project self-contained.
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
