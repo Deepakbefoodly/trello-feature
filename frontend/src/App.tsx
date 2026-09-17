@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom";
 
 import { useAuth } from "./auth/context";
+import { ProgressBar } from "./components/ProgressBar";
 import { AuthPage } from "./pages/AuthPage";
 import { BoardPage } from "./pages/BoardPage";
 import { BoardsPage } from "./pages/BoardsPage";
@@ -43,6 +44,9 @@ export function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
+      {/* Outside AppRoutes so it survives navigation, and so route tests can
+          render the routes without needing a query client for the bar. */}
+      <ProgressBar />
       <AppRoutes />
     </BrowserRouter>
   );

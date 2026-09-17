@@ -338,6 +338,55 @@ textarea:focus {
   margin-left: auto;
 }
 
+/* --- loading bar --------------------------------------------------------- */
+
+.progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  overflow: hidden;
+  /* Above the board and the modal backdrop, so it stays visible while a card
+     detail is open. */
+  z-index: 200;
+}
+
+.progress__bar {
+  height: 100%;
+  width: 35%;
+  background: var(--accent);
+  animation: progress-slide 1.1s ease-in-out infinite;
+}
+
+@keyframes progress-slide {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(400%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* An indefinitely sliding element is exactly what this setting exists to
+     suppress. The bar still appears, it just stops travelling. */
+  .progress__bar {
+    width: 100%;
+    animation: progress-pulse 1.6s ease-in-out infinite;
+  }
+
+  @keyframes progress-pulse {
+    0%,
+    100% {
+      opacity: 0.35;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+}
+
 /* --- toast --------------------------------------------------------------- */
 
 .toast {

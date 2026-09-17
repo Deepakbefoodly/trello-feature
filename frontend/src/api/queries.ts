@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { moveCard, moveList } from "../ordering";
 import { api } from "./client";
+import { MOVE_MUTATION_KEY } from "./useIsBusy";
 import type { Board, BoardDetail, BoardList, Card } from "./types";
 
 const boardsKey = ["boards"] as const;
@@ -111,6 +112,10 @@ export function useMoveCard(boardId: string, onError: (message: string) => void)
   const key = boardKey(boardId);
 
   return useMutation<BoardDetail, Error, MoveCardVariables, Rollback>({
+    // Tagged so the global loading bar ignores it: the move is already visible
+    // on screen, so announcing it as pending would contradict what the user
+    // just saw happen.
+    mutationKey: MOVE_MUTATION_KEY,
     mutationFn: ({ cardId, targetListId, position }) =>
       api.post<BoardDetail>(`/cards/${cardId}/move`, {
         target_list_id: targetListId,
@@ -148,6 +153,7 @@ export function useMoveList(boardId: string, onError: (message: string) => void)
   const key = boardKey(boardId);
 
   return useMutation<BoardDetail, Error, MoveListVariables, Rollback>({
+    mutationKey: MOVE_MUTATION_KEY,
     mutationFn: ({ listId, position }) =>
       api.post<BoardDetail>(`/lists/${listId}/move`, { position }),
 

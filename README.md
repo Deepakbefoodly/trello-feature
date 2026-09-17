@@ -121,7 +121,7 @@ cd frontend && npm test
 | Suite | Count | Covers |
 |---|---|---|
 | Backend | 99 | Ordering (including a `hypothesis` property test), ownership across all 12 board-scoped endpoints, auth, validation, database-URL rewriting, schema isolation |
-| Frontend | 24 | The optimistic reordering functions, rollback on a rejected move, route guards |
+| Frontend | 31 | The optimistic reordering functions, rollback on a rejected move, route guards, loading-indicator timing |
 
 The backend suite takes around 90 seconds, almost all of it bcrypt hashing at its
 default work factor. That cost is deliberate — lowering it for tests would mean
@@ -239,9 +239,9 @@ That exercises the ordering algorithm against Render's PostgreSQL rather than lo
 ### Free-tier caveats
 
 - **The API sleeps when idle.** A free Render web service spins down after a period of inactivity,
-  and the next request blocks while it cold-starts — often tens of seconds. The Vercel frontend
-  loads instantly, so the app looks broken while the API wakes up. If you are demoing it live, hit
-  the API once beforehand.
+  and the next request blocks while it cold-starts — often tens of seconds. The loading bar (below)
+  covers this, so the app reads as busy rather than broken, but it is still a long wait. If you are
+  demoing it live, hit the API once beforehand.
 - **The free database does not last forever.** Render removes free PostgreSQL instances after a
   limited period. Check the current policy on Render's pricing page before relying on a demo link.
 - **Migrations run in the build command**, because Render's pre-deploy hook is a paid-instance
@@ -291,6 +291,25 @@ this is the decision to revisit.
 All of this lives in `backend/app/ordering.py`, the only module permitted to write
 `position`. `frontend/src/ordering.ts` mirrors it for optimistic updates, and both
 test suites assert the same cases so the two cannot drift apart silently.
+
+---
+
+## Loading feedback
+
+A thin bar across the top of the viewport shows whenever the app is waiting on the API
+(`src/components/ProgressBar.tsx`). It reads TanStack Query's global counters, so it covers every
+request without any call site knowing about it. Two rules make it useful rather than noisy:
+
+- **It waits ~400ms before appearing.** Anything quicker shows nothing at all, because a bar that
+  flashes on and off reads as a glitch rather than as progress.
+- **It ignores card and list moves, and background revalidation.** A drag is applied optimistically,
+  so by the time the request is sent the user has already seen it happen; announcing it as pending
+  would contradict the screen. The same goes for the refetch every mutation triggers on settling —
+  without excluding that, the bar reappeared a second after a drag had visibly finished.
+
+It is deliberately non-blocking. A full-screen overlay would be impossible to miss during a
+cold start, but it would also freeze the board on every drag, destroying the instant feel the whole
+optimistic-move design exists to provide. Failures are reported separately by the rollback toast.
 
 ---
 
