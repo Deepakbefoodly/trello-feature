@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 class Card(Base, UUIDPrimaryKey, Timestamps, Positioned):
     __tablename__ = "cards"
+    __scope_attr__ = "list_id"
     __table_args__ = (
         # See the note on BoardList: the deferred check is what allows the
         # sibling shift to be one bulk UPDATE.
@@ -32,3 +33,13 @@ class Card(Base, UUIDPrimaryKey, Timestamps, Positioned):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     list: Mapped["BoardList"] = relationship(back_populates="cards")
+
+    @property
+    def board_id(self) -> UUID:
+        """The board this card ultimately belongs to.
+
+        Callers ask the card rather than walking card.list.board_id themselves,
+        so the traversal lives in one place. Loaders in app/access.py eager-load
+        `list`, so reading this does not trigger an extra query.
+        """
+        return self.list.board_id

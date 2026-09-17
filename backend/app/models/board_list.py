@@ -15,6 +15,7 @@ class BoardList(Base, UUIDPrimaryKey, Timestamps, Positioned):
     """A column on a board. Named BoardList to avoid shadowing the builtin."""
 
     __tablename__ = "lists"
+    __scope_attr__ = "board_id"
     __table_args__ = (
         # DEFERRABLE INITIALLY DEFERRED: the reindex in app/ordering.py shifts a
         # whole range of siblings in one UPDATE, which transiently duplicates a
