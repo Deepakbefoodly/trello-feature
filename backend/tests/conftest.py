@@ -31,11 +31,11 @@ ADMIN_URL = _BASE_URL.set(database="postgres")
 os.environ["DATABASE_URL"] = TEST_URL.render_as_string(hide_password=False)
 
 import pytest  # noqa: E402
-from alembic import command  # noqa: E402
 from alembic.config import Config  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import create_engine, text  # noqa: E402
 
+from alembic import command  # noqa: E402
 from app.db import engine  # noqa: E402
 from app.main import app  # noqa: E402
 from tests.api import Api  # noqa: E402

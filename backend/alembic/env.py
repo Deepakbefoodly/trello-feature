@@ -4,9 +4,9 @@ Online mode only. Offline (--sql) migration generation is not used by this
 project, so it is not implemented rather than left as dead boilerplate.
 """
 
-from alembic import context
 from sqlalchemy import create_engine
 
+from alembic import context
 from app.config import get_settings
 from app.models import Base
 

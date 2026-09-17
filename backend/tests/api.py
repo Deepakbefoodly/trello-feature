@@ -23,9 +23,7 @@ class Api:
 
     @classmethod
     def register(cls, client: TestClient, email: str, password: str = PASSWORD) -> "Api":
-        response = client.post(
-            "/api/auth/register", json={"email": email, "password": password}
-        )
+        response = client.post("/api/auth/register", json={"email": email, "password": password})
         assert response.status_code == 201, response.text
         body = response.json()
         return cls(client, body["access_token"], body["user"])

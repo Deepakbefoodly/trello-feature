@@ -54,9 +54,7 @@ def delete_list(list_id: UUID, session: DbSession, user: CurrentUser) -> None:
 
 
 @router.post("/lists/{list_id}/move", response_model=BoardDetail)
-def move_list(
-    list_id: UUID, payload: ListMove, session: DbSession, user: CurrentUser
-) -> Board:
+def move_list(list_id: UUID, payload: ListMove, session: DbSession, user: CurrentUser) -> Board:
     board_list = access.get_list(session, list_id, user)
     board_id = board_list.board_id
     ordering.lock_board(session, board_id)

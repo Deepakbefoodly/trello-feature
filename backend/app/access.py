@@ -17,9 +17,7 @@ from app.models import Board, BoardList, Card, User
 
 
 def get_board(session: Session, board_id: UUID, user: User) -> Board:
-    board = session.scalar(
-        select(Board).where(Board.id == board_id, Board.owner_id == user.id)
-    )
+    board = session.scalar(select(Board).where(Board.id == board_id, Board.owner_id == user.id))
     if board is None:
         raise ApiError.not_found("Board")
     return board
@@ -43,9 +41,7 @@ def get_board_detail(session: Session, board_id: UUID, user: User) -> Board:
 
 def list_boards(session: Session, user: User) -> list[Board]:
     return list(
-        session.scalars(
-            select(Board).where(Board.owner_id == user.id).order_by(Board.created_at)
-        )
+        session.scalars(select(Board).where(Board.owner_id == user.id).order_by(Board.created_at))
     )
 
 

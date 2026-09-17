@@ -13,9 +13,7 @@ router = APIRouter(tags=["cards"])
 
 
 @router.post("/lists/{list_id}/cards", response_model=CardOut, status_code=201)
-def create_card(
-    list_id: UUID, payload: CardCreate, session: DbSession, user: CurrentUser
-) -> Card:
+def create_card(list_id: UUID, payload: CardCreate, session: DbSession, user: CurrentUser) -> Card:
     board_list = access.get_list(session, list_id, user)
     ordering.lock_board(session, board_list.board_id)
 
@@ -36,9 +34,7 @@ def get_card(card_id: UUID, session: DbSession, user: CurrentUser) -> Card:
 
 
 @router.patch("/cards/{card_id}", response_model=CardOut)
-def update_card(
-    card_id: UUID, payload: CardUpdate, session: DbSession, user: CurrentUser
-) -> Card:
+def update_card(card_id: UUID, payload: CardUpdate, session: DbSession, user: CurrentUser) -> Card:
     card = access.get_card(session, card_id, user)
 
     # exclude_unset keeps an omitted key from overwriting a stored value, while
@@ -63,9 +59,7 @@ def delete_card(card_id: UUID, session: DbSession, user: CurrentUser) -> None:
 
 
 @router.post("/cards/{card_id}/move", response_model=BoardDetail)
-def move_card(
-    card_id: UUID, payload: CardMove, session: DbSession, user: CurrentUser
-) -> Board:
+def move_card(card_id: UUID, payload: CardMove, session: DbSession, user: CurrentUser) -> Board:
     card = access.get_card(session, card_id, user)
     # Captured before the move: afterwards the card points at its new list.
     board_id = card.board_id

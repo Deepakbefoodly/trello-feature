@@ -103,9 +103,7 @@ def move(
     sibling_count = count_in_scope(session, model, target_scope_id)
     highest = sibling_count - 1 if same_scope else sibling_count
     if not 0 <= new_position <= highest:
-        raise ApiError.validation(
-            f"position must be between 0 and {highest}", field="position"
-        )
+        raise ApiError.validation(f"position must be between 0 and {highest}", field="position")
 
     if same_scope:
         if new_position == old_position:
